@@ -14,7 +14,7 @@ import java.util.Random;
  */
 public class VRP {
 
-    double[][] timeMatrix;
+    double[][] distanceMatrix;
     ArrayList<Node> allNodes;
     ArrayList<Node> servicePoints;
     Random ran;
@@ -32,7 +32,7 @@ public class VRP {
 
     void GenerateNetworkRandomly() {
     	createAllNodesAndServicePointLists();
-        calculateTimeMatrix();
+        CalculateDistanceMatrix();
     }
 
     public void createAllNodesAndServicePointLists() {
@@ -66,9 +66,9 @@ public class VRP {
 	 } 
 
 
-    public void calculateTimeMatrix() {
+    public void CalculateDistanceMatrix() {
 
-        timeMatrix = new double[allNodes.size()][allNodes.size()];
+        distanceMatrix = new double[allNodes.size()][allNodes.size()];
         for (int i = 0; i < allNodes.size(); i++) {
             Node from = allNodes.get(i);
 
@@ -80,8 +80,8 @@ public class VRP {
                 double distance = Math.sqrt((Delta_x * Delta_x) + (Delta_y * Delta_y));
 
                 distance = Math.round(distance);
-                //Normalizing distance to time with 35 km/hour speed and 15 minutes load allocation penalty
-                timeMatrix[i][j] = distance / 35 + to.serviceTime;
+
+                distanceMatrix[i][j] = distance;
             }
         }
     }
@@ -161,8 +161,8 @@ public class VRP {
 
         Node beforeInserted = route.nodes.get(route.nodes.size() - 3);
 
-        double costAdded = timeMatrix[beforeInserted.ID][insertedCustomer.ID] + timeMatrix[insertedCustomer.ID][depot.ID];
-        double costRemoved = timeMatrix[beforeInserted.ID][depot.ID];
+        double costAdded = distanceMatrix[beforeInserted.ID][insertedCustomer.ID] + distanceMatrix[insertedCustomer.ID][depot.ID];
+        double costRemoved = distanceMatrix[beforeInserted.ID][depot.ID];
 
         route.cost = route.cost + (costAdded - costRemoved);
         route.load = route.load + insertedCustomer.demand;
@@ -181,7 +181,7 @@ public class VRP {
                     ArrayList<Node> nodeSequence = lastRoute.nodes;
                     Node lastCustomerInTheRoute = nodeSequence.get(nodeSequence.size() - 2);
 
-                    double trialCost = timeMatrix[lastCustomerInTheRoute.ID][candidate.ID];
+                    double trialCost = distanceMatrix[lastCustomerInTheRoute.ID][candidate.ID];
 
                     if (trialCost < bestInsertion.cost) {
                         bestInsertion.customer = candidate;
@@ -293,12 +293,12 @@ public class VRP {
                             }
                         }
 
-                        double costAdded = timeMatrix[a.ID][c.ID] + timeMatrix[insPoint1.ID][b.ID] + timeMatrix[b.ID][insPoint2.ID];
-                        double costRemoved = timeMatrix[a.ID][b.ID] + timeMatrix[b.ID][c.ID] + timeMatrix[insPoint1.ID][insPoint2.ID];
+                        double costAdded = distanceMatrix[a.ID][c.ID] + distanceMatrix[insPoint1.ID][b.ID] + distanceMatrix[b.ID][insPoint2.ID];
+                        double costRemoved = distanceMatrix[a.ID][b.ID] + distanceMatrix[b.ID][c.ID] + distanceMatrix[insPoint1.ID][insPoint2.ID];
                         double moveCost = costAdded - costRemoved;
 
-                        double costChangeOriginRoute = timeMatrix[a.ID][c.ID] - (timeMatrix[a.ID][b.ID] + timeMatrix[b.ID][c.ID]);
-                        double costChangeTargetRoute = timeMatrix[insPoint1.ID][b.ID] + timeMatrix[b.ID][insPoint2.ID] - timeMatrix[insPoint1.ID][insPoint2.ID];
+                        double costChangeOriginRoute = distanceMatrix[a.ID][c.ID] - (distanceMatrix[a.ID][b.ID] + distanceMatrix[b.ID][c.ID]);
+                        double costChangeTargetRoute = distanceMatrix[insPoint1.ID][b.ID] + distanceMatrix[b.ID][insPoint2.ID] - distanceMatrix[insPoint1.ID][insPoint2.ID];
                         double totalObjectiveChange = costChangeOriginRoute + costChangeTargetRoute;
 
                         //Testing
@@ -358,8 +358,8 @@ public class VRP {
                         if (rt1 == rt2) // within route 
                         {
                             if (firstNodeIndex == secondNodeIndex - 1) {
-                                double costRemoved = timeMatrix[a1.ID][b1.ID] + timeMatrix[b1.ID][b2.ID] + timeMatrix[b2.ID][c2.ID];
-                                double costAdded = timeMatrix[a1.ID][b2.ID] + timeMatrix[b2.ID][b1.ID] + timeMatrix[b1.ID][c2.ID];
+                                double costRemoved = distanceMatrix[a1.ID][b1.ID] + distanceMatrix[b1.ID][b2.ID] + distanceMatrix[b2.ID][c2.ID];
+                                double costAdded = distanceMatrix[a1.ID][b2.ID] + distanceMatrix[b2.ID][b1.ID] + distanceMatrix[b1.ID][c2.ID];
                                 moveCost = costAdded - costRemoved;
 //                                      BuilArcList(arcsDaysCreated, a1.uid, b2.uid, p, b2.uid, b1.uid, b1.uid, c2.uid);
 //                                      BuilArcList(arcsDaysDeleted, a1.uid, b1.uid, p, b1.uid, b2.uid, b2.uid, c2.uid);
@@ -369,11 +369,11 @@ public class VRP {
                                     continue;
                                 }
                             } else {
-                                double costRemoved1 = timeMatrix[a1.ID][b1.ID] + timeMatrix[b1.ID][c1.ID];
-                                double costAdded1 = timeMatrix[a1.ID][b2.ID] + timeMatrix[b2.ID][c1.ID];
+                                double costRemoved1 = distanceMatrix[a1.ID][b1.ID] + distanceMatrix[b1.ID][c1.ID];
+                                double costAdded1 = distanceMatrix[a1.ID][b2.ID] + distanceMatrix[b2.ID][c1.ID];
 
-                                double costRemoved2 = timeMatrix[a2.ID][b2.ID] + timeMatrix[b2.ID][c2.ID];
-                                double costAdded2 = timeMatrix[a2.ID][b1.ID] + timeMatrix[b1.ID][c2.ID];
+                                double costRemoved2 = distanceMatrix[a2.ID][b2.ID] + distanceMatrix[b2.ID][c2.ID];
+                                double costAdded2 = distanceMatrix[a2.ID][b1.ID] + distanceMatrix[b1.ID][c2.ID];
 
                                 moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
 
@@ -392,11 +392,11 @@ public class VRP {
                                 continue;
                             }
 
-                            double costRemoved1 = timeMatrix[a1.ID][b1.ID] + timeMatrix[b1.ID][c1.ID];
-                            double costAdded1 = timeMatrix[a1.ID][b2.ID] + timeMatrix[b2.ID][c1.ID];
+                            double costRemoved1 = distanceMatrix[a1.ID][b1.ID] + distanceMatrix[b1.ID][c1.ID];
+                            double costAdded1 = distanceMatrix[a1.ID][b2.ID] + distanceMatrix[b2.ID][c1.ID];
 
-                            double costRemoved2 = timeMatrix[a2.ID][b2.ID] + timeMatrix[b2.ID][c2.ID];
-                            double costAdded2 = timeMatrix[a2.ID][b1.ID] + timeMatrix[b1.ID][c2.ID];
+                            double costRemoved2 = distanceMatrix[a2.ID][b2.ID] + distanceMatrix[b2.ID][c2.ID];
+                            double costAdded2 = distanceMatrix[a2.ID][b1.ID] + distanceMatrix[b1.ID][c2.ID];
 
                             moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
 //                          BuilArcList(arcsDaysCreated, a1.uid, b2.uid, p, b2.uid, c1.uid, p, a2.uid, b1.uid, p, b1.uid, c2.uid);
@@ -462,8 +462,8 @@ public class VRP {
             Node F = targetRoute.nodes.get(rm.targetNodePosition);
             Node G = targetRoute.nodes.get(rm.targetNodePosition + 1);
 
-            double costChangeOrigin = timeMatrix[A.ID][C.ID] - timeMatrix[A.ID][B.ID] - timeMatrix[B.ID][C.ID];
-            double costChangeTarget = timeMatrix[F.ID][B.ID] + timeMatrix[B.ID][G.ID] - timeMatrix[F.ID][G.ID];
+            double costChangeOrigin = distanceMatrix[A.ID][C.ID] - distanceMatrix[A.ID][B.ID] - distanceMatrix[B.ID][C.ID];
+            double costChangeTarget = distanceMatrix[F.ID][B.ID] + distanceMatrix[B.ID][G.ID] - distanceMatrix[F.ID][G.ID];
 
             originRoute.load = originRoute.load - B.demand;
             targetRoute.load = targetRoute.load + B.demand;
@@ -515,8 +515,8 @@ public class VRP {
             Node F = secondRoute.nodes.get(sm.secondNodePosition);
             Node G = secondRoute.nodes.get(sm.secondNodePosition + 1);
 
-            double costChangeFirstRoute = timeMatrix[A.ID][F.ID] + timeMatrix[F.ID][C.ID] - timeMatrix[A.ID][B.ID] - timeMatrix[B.ID][C.ID];
-            double costChangeSecondRoute = timeMatrix[E.ID][B.ID] + timeMatrix[B.ID][G.ID] - timeMatrix[E.ID][F.ID] - timeMatrix[F.ID][G.ID];
+            double costChangeFirstRoute = distanceMatrix[A.ID][F.ID] + distanceMatrix[F.ID][C.ID] - distanceMatrix[A.ID][B.ID] - distanceMatrix[B.ID][C.ID];
+            double costChangeSecondRoute = distanceMatrix[E.ID][B.ID] + distanceMatrix[B.ID][G.ID] - distanceMatrix[E.ID][F.ID] - distanceMatrix[F.ID][G.ID];
 
             firstRoute.cost = firstRoute.cost + costChangeFirstRoute;
             secondRoute.cost = secondRoute.cost + costChangeSecondRoute;
@@ -546,7 +546,7 @@ public class VRP {
                 Node A = rt.nodes.get(j);
                 Node B = rt.nodes.get(j + 1);
 
-                secureRouteCost = secureRouteCost + timeMatrix[A.ID][B.ID];
+                secureRouteCost = secureRouteCost + distanceMatrix[A.ID][B.ID];
                  secureRouteLoad += A.demand;
             }
 
@@ -624,8 +624,8 @@ public class VRP {
                                 continue;
                             }
 
-                            double costAdded = timeMatrix[A.ID][K.ID] + timeMatrix[B.ID][L.ID];
-                            double costRemoved = timeMatrix[A.ID][B.ID] + timeMatrix[K.ID][L.ID];
+                            double costAdded = distanceMatrix[A.ID][K.ID] + distanceMatrix[B.ID][L.ID];
+                            double costRemoved = distanceMatrix[A.ID][B.ID] + distanceMatrix[K.ID][L.ID];
 
                             moveCost = costAdded - costRemoved;
 
@@ -646,8 +646,8 @@ public class VRP {
                                 continue;
                             }
 
-                            double costAdded = timeMatrix[A.ID][L.ID] + timeMatrix[B.ID][K.ID];
-                            double costRemoved = timeMatrix[A.ID][B.ID] + timeMatrix[K.ID][L.ID];
+                            double costAdded = distanceMatrix[A.ID][L.ID] + distanceMatrix[B.ID][K.ID];
+                            double costRemoved = distanceMatrix[A.ID][B.ID] + distanceMatrix[K.ID][L.ID];
 
                             moveCost = costAdded - costRemoved;
                         }
@@ -794,7 +794,7 @@ public class VRP {
                 Node A = rt.nodes.get(j);
                 Node B = rt.nodes.get(j + 1);
 
-                totalCost += timeMatrix[A.ID][B.ID];
+                totalCost += distanceMatrix[A.ID][B.ID];
             }
         }
 
@@ -809,7 +809,7 @@ public class VRP {
         {
             Node A = rt.nodes.get(i);
             Node B = rt.nodes.get(i+1);
-            totCost += timeMatrix[A.ID][B.ID];
+            totCost += distanceMatrix[A.ID][B.ID];
         }
         return totCost;
     }

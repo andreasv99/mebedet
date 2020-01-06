@@ -14,7 +14,7 @@ import java.util.Random;
  */
 public class VRP {
 
-    double[][] timeMatrix;
+    public double[][] timeMatrix;
     ArrayList<Node> allNodes;
     ArrayList<Node> servicePoints;
     Random ran;
@@ -99,15 +99,16 @@ public class VRP {
         for (Route rt : s.routes) {
         	System.out.println(rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID]);
         }
-        for (int i = 1; i <= 3; i++) {
+        Solution bestSolutionThroughMyAlgo = cloneSolution(s);
+        for (int i = 1; i <= 100; i++) {
         	reArrangeSolution(s);
         	System.out.println("Solution " + i + ": " + s.cost + " " + s.routes.size());
-        	for (Route rt : s.routes) {
-            	System.out.println(rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID]);
-            }
+        	if (s.cost < bestSolutionThroughMyAlgo.cost) {
+        		bestSolutionThroughMyAlgo = cloneSolution(s);
+        	}
         }
         SolutionDrawer.drawRoutes(allNodes, s, "Initial_Solution");
-        //TabuSearch(s);
+        TabuSearch(bestSolutionThroughMyAlgo);
     }
 
     private void SetRoutedFlagToFalseForAllCustomers() {
@@ -216,13 +217,11 @@ public class VRP {
     }
 
     private void TabuSearch(Solution sol) {
-        bestSolutionThroughTabuSearch = cloneSolution(sol);
-
+        bestSolutionThroughTabuSearch = cloneSolution(sol); 
         RelocationMove rm = new RelocationMove();
         SwapMove sm = new SwapMove();
         TwoOptMove top = new TwoOptMove();
-        
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 50; i++) {
             InitializeOperators(rm, sm, top);
 
             int operatorType = 2;//DecideOperator();
@@ -247,8 +246,72 @@ public class VRP {
             TestSolution(sol);
 
             SolutionDrawer.drawRoutes(allNodes, sol, Integer.toString(i));
+            if (sol.cost < bestSolutionThroughTabuSearch.cost) {
+            	bestSolutionThroughTabuSearch = cloneSolution(sol);
+            }
         }
+        sol = cloneSolution(bestSolutionThroughTabuSearch);
+        for (int i = 0; i < 50; i++) {
+            InitializeOperators(rm, sm, top);
 
+            int operatorType = 0;//DecideOperator();
+
+            //Identify Best Move
+            if (operatorType == 0) {
+                FindBestRelocationMove(rm, sol);
+            } else if (operatorType == 1) {
+                FindBestSwapMove(sm, sol);
+            } else if (operatorType == 2) {
+                FindBestTwoOptMove(top, sol);
+            }
+
+            if (LocalOptimumHasBeenReached(operatorType, rm, sm, top)) {
+                break;
+            }
+
+            //Apply move
+            ApplyMove(operatorType, rm, sm, top, sol);
+            System.out.println(i + " " + sol.cost + " " + sol.routes.size());
+
+            TestSolution(sol);
+
+            SolutionDrawer.drawRoutes(allNodes, sol, Integer.toString(i));
+            if (sol.cost < bestSolutionThroughTabuSearch.cost) {
+            	bestSolutionThroughTabuSearch = cloneSolution(sol);
+            }
+        }
+        sol = cloneSolution(bestSolutionThroughTabuSearch);
+        for (int i = 0; i < 50; i++) {
+            InitializeOperators(rm, sm, top);
+
+            int operatorType = 1;//DecideOperator();
+
+            //Identify Best Move
+            if (operatorType == 0) {
+                FindBestRelocationMove(rm, sol);
+            } else if (operatorType == 1) {
+                FindBestSwapMove(sm, sol);
+            } else if (operatorType == 2) {
+                FindBestTwoOptMove(top, sol);
+            }
+
+            if (LocalOptimumHasBeenReached(operatorType, rm, sm, top)) {
+                break;
+            }
+
+            //Apply move
+            ApplyMove(operatorType, rm, sm, top, sol);
+            System.out.println(i + " " + sol.cost + " " + sol.routes.size());
+
+            TestSolution(sol);
+
+            SolutionDrawer.drawRoutes(allNodes, sol, Integer.toString(i));
+            if (sol.cost < bestSolutionThroughTabuSearch.cost) {
+            	bestSolutionThroughTabuSearch = cloneSolution(sol);
+            }
+        }
+        System.out.println("Best Solution: " + bestSolutionThroughTabuSearch.cost);
+        SolutionDrawer.drawRoutes(allNodes, bestSolutionThroughTabuSearch, "BestSolution");
     }
 
     private Solution cloneSolution(Solution sol) {
@@ -501,7 +564,7 @@ public class VRP {
                 int problem = 0;
             }
         }
-        sol.cost = sol.cost + rm.moveCost;
+        sol.cost = CalculateCostSol(sol);
     }
 
     private void ApplySwapMove(SwapMove sm, Solution sol) {
@@ -551,7 +614,7 @@ public class VRP {
 
         }
 
-        sol.cost = sol.cost + sm.moveCost;
+        sol.cost = CalculateCostSol(sol);
 
     }
 
@@ -848,6 +911,12 @@ public class VRP {
 
         Node F = targetRoute.nodes.get(targetRoute.nodes.size() - 2);
         Node G = targetRoute.nodes.get(targetRoute.nodes.size() - 1);
+        
+        if (!originRoute.equals(targetRoute)) {
+            if (targetRoute.load + B.demand > targetRoute.capacity) {
+                return;
+            }
+        }
 
         double costChangeOrigin = timeMatrix[A.ID][C.ID] - timeMatrix[A.ID][B.ID] - timeMatrix[B.ID][C.ID];
         double costChangeTarget = timeMatrix[F.ID][B.ID] + timeMatrix[B.ID][G.ID] - timeMatrix[F.ID][G.ID];
@@ -859,7 +928,7 @@ public class VRP {
         targetRoute.cost = targetRoute.cost + costChangeTarget;
 
         originRoute.nodes.remove(originRoute.nodes.size() - 2);
-        targetRoute.nodes.add(targetRoute.nodes.size() - 2, B);
+        targetRoute.nodes.add(targetRoute.nodes.size() - 1, B);
 
         double newMoveCost = costChangeOrigin + costChangeTarget;
         sol.cost = CalculateCostSol(sol);
@@ -888,6 +957,7 @@ public class VRP {
     	}
     	return smallestRoute;
     }
+    
     
     public int getCriticalNodeIndex(Route route) {
     	double maxCost = Double.MIN_VALUE;

@@ -81,7 +81,10 @@ public class VRP {
 
                 distance = Math.round(distance);
 
-                timeMatrix[i][j] = distance / 35 + 0.25;
+                timeMatrix[i][j] = distance / 35;
+                if (j != depot.ID) {
+                	timeMatrix[i][j] += 0.25;
+                }
             }
         }
     }
@@ -92,8 +95,16 @@ public class VRP {
 
         ApplyNearestNeighborMethod(s);
         System.out.println("Initial Solution: " + s.cost + " " + s.routes.size());
+        boolean terminationCondition = false;
         for (Route rt : s.routes) {
         	System.out.println(rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID]);
+        }
+        for (int i = 1; i <= 3; i++) {
+        	reArrangeSolution(s);
+        	System.out.println("Solution " + i + ": " + s.cost + " " + s.routes.size());
+        	for (Route rt : s.routes) {
+            	System.out.println(rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID]);
+            }
         }
         SolutionDrawer.drawRoutes(allNodes, s, "Initial_Solution");
         //TabuSearch(s);
@@ -211,7 +222,7 @@ public class VRP {
         SwapMove sm = new SwapMove();
         TwoOptMove top = new TwoOptMove();
         
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 100; i++) {
             InitializeOperators(rm, sm, top);
 
             int operatorType = 2;//DecideOperator();
@@ -706,7 +717,7 @@ public class VRP {
             rt1.nodes = modifiedRt;
             
             rt1.cost += top.moveCost;
-            sol.cost += top.moveCost;
+            sol.cost = CalculateCostSol(sol);
         }
         else
         {
@@ -759,7 +770,7 @@ public class VRP {
             rt1.cost = UpdateRouteCost(rt1);
             rt2.cost = UpdateRouteCost(rt2);
             
-            sol.cost += top.moveCost;
+            sol.cost = CalculateCostSol(sol);
         }
 
     }
@@ -801,7 +812,7 @@ public class VRP {
         {
             Route rt = sol.routes.get(i);
             double routeCost = 0;
-            for (int j = 0; j < rt.nodes.size() - 1; j++) {
+            for (int j = 0; j < rt.nodes.size() - 2; j++) {
                 Node A = rt.nodes.get(j);
                 Node B = rt.nodes.get(j + 1);
 
@@ -826,5 +837,68 @@ public class VRP {
             totCost += timeMatrix[A.ID][B.ID];
         }
         return totCost;
+    }
+    
+    private void reArrangeSolution(Solution sol) {
+    	Route originRoute = getCriticalRoute(sol);
+    	Route targetRoute = getSmallestRoute(sol);
+    	Node B = originRoute.nodes.get(originRoute.nodes.size() - 2);
+    	Node A = originRoute.nodes.get(originRoute.nodes.size() - 3);
+        Node C = originRoute.nodes.get(originRoute.nodes.size() - 1);
+
+        Node F = targetRoute.nodes.get(targetRoute.nodes.size() - 2);
+        Node G = targetRoute.nodes.get(targetRoute.nodes.size() - 1);
+
+        double costChangeOrigin = timeMatrix[A.ID][C.ID] - timeMatrix[A.ID][B.ID] - timeMatrix[B.ID][C.ID];
+        double costChangeTarget = timeMatrix[F.ID][B.ID] + timeMatrix[B.ID][G.ID] - timeMatrix[F.ID][G.ID];
+
+        originRoute.load = originRoute.load - B.demand;
+        targetRoute.load = targetRoute.load + B.demand;
+
+        originRoute.cost = originRoute.cost + costChangeOrigin;
+        targetRoute.cost = targetRoute.cost + costChangeTarget;
+
+        originRoute.nodes.remove(originRoute.nodes.size() - 2);
+        targetRoute.nodes.add(targetRoute.nodes.size() - 2, B);
+
+        double newMoveCost = costChangeOrigin + costChangeTarget;
+        sol.cost = CalculateCostSol(sol);
+    }
+    
+    public Route getCriticalRoute(Solution sol) {
+    	double routeCost = Double.MIN_VALUE;
+    	Route criticalRoute = sol.routes.get(0);
+    	for (Route rt : sol.routes) {
+    		if (rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID] > routeCost) {
+    			routeCost = rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID];
+    			criticalRoute = rt;
+    		}
+    	}
+    	return criticalRoute;
+    }
+    
+    public Route getSmallestRoute(Solution sol) {
+    	double routeCost = Double.MAX_VALUE;
+    	Route smallestRoute = sol.routes.get(0);
+    	for (Route rt : sol.routes) {
+    		if (rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID] < routeCost) {
+    			routeCost = rt.cost - timeMatrix[rt.nodes.get(rt.nodes.size() - 2).ID][depot.ID];
+    			smallestRoute = rt;
+    		}
+    	}
+    	return smallestRoute;
+    }
+    
+    public int getCriticalNodeIndex(Route route) {
+    	double maxCost = Double.MIN_VALUE;
+    	int criticalNodeIndex = 0;
+    	for (int i = 1; i < route.nodes.size() - 1; i++) {
+    		double nodeCost = timeMatrix[route.nodes.get(i - 1).ID][route.nodes.get(i).ID] + timeMatrix[route.nodes.get(i).ID][route.nodes.get(i + 1).ID];
+    		if (nodeCost > maxCost) {
+    			criticalNodeIndex = i;
+    			maxCost = nodeCost;
+    		}
+    	}
+    	return criticalNodeIndex;
     }
 }

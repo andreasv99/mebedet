@@ -21,4 +21,5 @@ public class Solution {
             routes = new ArrayList();
             cost = 0;
         }
+       
 }
